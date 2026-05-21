@@ -1,6 +1,6 @@
 import SwiftUI
+internal import UniformTypeIdentifiers
 
-// Individual Ingredient Item
 struct IngredientItemView: View {
     let food: FoodIngredient
     
@@ -11,6 +11,12 @@ struct IngredientItemView: View {
             Text(food.name)
                 .font(.caption)
                 .foregroundColor(.secondary)
+        }
+        .padding(4)
+        .contentShape(Rectangle())
+        .onDrag {
+            // Use UTType with explicit string representation
+            return NSItemProvider(object: food.name as NSString)
         }
     }
 }

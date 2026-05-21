@@ -1,6 +1,5 @@
 import SwiftUI
 
-// MARK: - Recipe Manager (Single Responsibility)
 class RecipeManager: RecipeManageable {
     func canMakeRecipe(_ recipe: Recipe, with ingredients: Set<String>) -> Bool {
         recipe.ingredients.allSatisfy { ingredients.contains($0) }
@@ -14,5 +13,12 @@ class RecipeManager: RecipeManageable {
         gameState.createdRecipes.insert(recipe.name)
         gameState.saveGame()
         return "You created \(recipe.emoji) \(recipe.name)!"
+    }
+    
+    func findRecipe(for ingredients: Set<String>) -> Recipe? {
+        Recipe.availableRecipes.first { recipe in
+            recipe.ingredients.count == ingredients.count &&
+            recipe.ingredients.allSatisfy { ingredients.contains($0) }
+        }
     }
 }
