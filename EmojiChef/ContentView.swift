@@ -144,7 +144,7 @@ struct CookingGameApp: App {
     
     var body: some Scene {
         WindowGroup {
-            NavigationStack {
+            NavigationView {
                 GameView()
                     .environmentObject(gameState)
                     .preferredColorScheme(nil) // Follow system setting
