@@ -1,5 +1,5 @@
 import SwiftUI
-internal import Combine
+import Combine
 
 // MARK: - Game State
 class GameState: ObservableObject, Codable {
@@ -60,5 +60,23 @@ class GameState: ObservableObject, Codable {
             return decoded
         }
         return GameState()
+    }
+}
+
+extension GameState: GameStateUpdater {
+    func addCollectedIngredient(_ ingredient: String) {
+        collectedIngredients.insert(ingredient)
+        saveGame()
+    }
+    
+    func completeMemoryGame() {
+        memoryGameCompleted = true
+        saveGame()
+    }
+    
+    func resetMemoryGameProgress() {
+        memoryGameCompleted = false
+        collectedIngredients = []
+        saveGame()
     }
 }
