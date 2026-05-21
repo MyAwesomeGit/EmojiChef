@@ -116,6 +116,8 @@ TestResults/
 ehthumbs.db
 Thumbs.db
 
+project_contents.txt
+
 # Project-specific
 EmojiChef.xcodeproj/xcuserdata/
 EmojiChef.xcodeproj/project.xcworkspace/xcuserdata/
