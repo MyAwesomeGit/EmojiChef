@@ -11,7 +11,7 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		C84A89662FBC5930004BBADF /* EmojiChef */ = {
+		C844B07A2FBEF7EC00EA36FC /* EmojiChef */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = EmojiChef;
 			sourceTree = "<group>";
@@ -32,7 +32,7 @@
 		C84A895B2FBC5930004BBADF = {
 			isa = PBXGroup;
 			children = (
-				C84A89662FBC5930004BBADF /* EmojiChef */,
+				C844B07A2FBEF7EC00EA36FC /* EmojiChef */,
 				C84A89652FBC5930004BBADF /* Products */,
 			);
 			sourceTree = "<group>";
@@ -61,7 +61,7 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				C84A89662FBC5930004BBADF /* EmojiChef */,
+				C844B07A2FBEF7EC00EA36FC /* EmojiChef */,
 			);
 			name = EmojiChef;
 			packageProductDependencies = (
