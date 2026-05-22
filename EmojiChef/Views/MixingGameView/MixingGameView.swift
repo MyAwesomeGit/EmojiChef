@@ -148,7 +148,6 @@ struct MixingGameView: View {
     // MARK: - Drop Handling
     private func handleDrop(providers: [NSItemProvider]) {
         for provider in providers {
-            // Use explicit UTType for plain text
             provider.loadItem(forTypeIdentifier: UTType.plainText.identifier, options: nil) { (item, error) in
                 DispatchQueue.main.async {
                     if let error = error {
@@ -156,17 +155,13 @@ struct MixingGameView: View {
                         return
                     }
                     
-                    // Try to get string from Data or directly
                     if let data = item as? Data,
                        let ingredient = String(data: data, encoding: .utf8) {
                         self.addIngredientToBowl(ingredient)
                     } else if let string = item as? String {
                         self.addIngredientToBowl(string)
-                    } else {
-                        // Fallback: try to get from item as NSString
-                        if let nsString = item as? NSString {
-                            self.addIngredientToBowl(nsString as String)
-                        }
+                    } else if let nsString = item as? NSString {
+                        self.addIngredientToBowl(nsString as String)
                     }
                 }
             }
@@ -181,6 +176,14 @@ struct MixingGameView: View {
         
         // Check if bowl contents match a recipe exactly
         if let recipe = recipeManager.findRecipe(for: bowlIngredients) {
+            // Check if recipe is already created
+            if recipeManager.isRecipeCreated(recipe, createdRecipes: gameState.createdRecipes) {
+                recipeMessage = "You already made \(recipe.emoji) \(recipe.name)! Try a different combination."
+                showingRecipeAlert = true
+                bowlIngredients.removeAll()
+                return
+            }
+            
             // Recipe found – create it
             let message = recipeManager.createRecipe(recipe, in: gameState)
             recipeMessage = message
@@ -189,12 +192,10 @@ struct MixingGameView: View {
             return
         }
         
-        // Check if current ingredients are a subset of any recipe
-        let isSubsetOfAnyRecipe = Recipe.availableRecipes.contains { recipe in
-            bowlIngredients.allSatisfy { recipe.ingredients.contains($0) }
-        }
+        // Check if current ingredients can lead to any recipe
+        let canLeadToRecipe = recipeManager.canLeadToRecipe(bowlIngredients)
         
-        if isSubsetOfAnyRecipe {
+        if canLeadToRecipe {
             // Still possible to complete a recipe – do nothing, let player continue
             return
         }
