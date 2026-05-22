@@ -17,29 +17,49 @@ class MemoryGameViewModel: ObservableObject {
         static let columnsCount = 4
     }
     
-    // MARK: - Published Properties (доступны для чтения View)
+    // MARK: - Published Properties
     @Published private(set) var cards: [MemoryCard] = []
     @Published private(set) var matchedPairs: Set<String> = []
     @Published private(set) var isGameCompleted = false
     @Published private(set) var isProcessing = false
-    @Published private(set) var flippedIndices: Set<Int> = []  // теперь публичное, но только для чтения
+    @Published private(set) var flippedIndices: Set<Int> = []
     
     // MARK: - Dependencies
     private var gameStateUpdater: GameStateUpdater?
+    private var cancellables = Set<AnyCancellable>()
     
     // MARK: - Initialization
     init() {
         setupGame()
+        setupResetObserver()
     }
     
-    // MARK: - Configuration (вызывается после того, как окружение готово)
+    // MARK: - Reset Observer
+    private func setupResetObserver() {
+        NotificationCenter.default.publisher(for: GameState.gameDidResetNotification)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.handleAppReset()
+            }
+            .store(in: &cancellables)
+    }
+    
+    private func handleAppReset() {
+        // Force a complete reset of the view model
+        setupGame()
+        // Clear any game state updater reference
+        gameStateUpdater = nil
+    }
+    
+    // MARK: - Configuration
     func configure(with updater: GameStateUpdater) {
         self.gameStateUpdater = updater
-        // Если игра уже завершена, но updater не был установлен - синхронизируем
+        
+        // Only sync if game is already completed
         if isGameCompleted {
-            updater.completeMemoryGame()
-            for ingredient in matchedPairs {
-                updater.addCollectedIngredient(ingredient)
+            // Add all matched pairs as collected ingredients
+            for ingredientName in matchedPairs {
+                updater.addCollectedIngredient(ingredientName)
             }
         }
     }
@@ -47,8 +67,12 @@ class MemoryGameViewModel: ObservableObject {
     // MARK: - Public Methods
     func setupGame() {
         let allIngredients = FoodIngredient.allIngredients
+        
+        // If we have existing collected ingredients, only use those that aren't matched yet
+        // but for a fresh game, use all ingredients
         var newCards: [MemoryCard] = []
         
+        // Always start fresh with all ingredients
         for ingredient in allIngredients {
             newCards.append(MemoryCard(ingredient: ingredient))
             newCards.append(MemoryCard(ingredient: ingredient))
@@ -60,7 +84,15 @@ class MemoryGameViewModel: ObservableObject {
         isGameCompleted = false
         isProcessing = false
         
+        // Notify updater to reset progress
         gameStateUpdater?.resetMemoryGameProgress()
+        
+        // Also clear any existing ingredients in game state
+        if let updater = gameStateUpdater {
+            // Reset memory game progress clears collectedIngredients
+            // But we want to ensure a fresh start
+            updater.resetMemoryGameProgress()
+        }
     }
     
     func flipCard(at index: Int) {
@@ -121,5 +153,10 @@ class MemoryGameViewModel: ObservableObject {
     private func resetFlippedCards() {
         flippedIndices.removeAll()
         isProcessing = false
+    }
+    
+    // MARK: - Deinitialization
+    deinit {
+        cancellables.removeAll()
     }
 }

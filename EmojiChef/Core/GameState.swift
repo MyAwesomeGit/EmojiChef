@@ -9,6 +9,9 @@ class GameState: ObservableObject, Codable {
     @Published var currentScreen: GameScreen = .characterSelection
     @Published var memoryGameCompleted: Bool = false
     
+    // New: Notification for reset events
+    static let gameDidResetNotification = Notification.Name("gameDidReset")
+    
     enum GameScreen: String, Codable {
         case characterSelection
         case memoryGame
@@ -46,6 +49,9 @@ class GameState: ObservableObject, Codable {
         currentScreen = .characterSelection
         memoryGameCompleted = false
         saveGame()
+        
+        // Post notification for all observers to reset
+        NotificationCenter.default.post(name: GameState.gameDidResetNotification, object: nil)
     }
     
     func saveGame() {

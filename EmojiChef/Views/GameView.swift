@@ -4,6 +4,7 @@ import SwiftUI
 struct GameView: View {
     @EnvironmentObject var gameState: GameState
     @Environment(\.colorScheme) private var colorScheme
+    @State private var resetKey = UUID() // Force view recreation on reset
     
     var body: some View {
         VStack(spacing: 0) {
@@ -46,8 +47,10 @@ struct GameView: View {
                 CharacterSelectionView()
             case .memoryGame:
                 MemoryGameView()
+                    .id(resetKey) // Force view recreation on reset
             case .mixingGame:
                 MixingGameView()
+                    .id(resetKey) // Force view recreation on reset
             }
         }
         .background(Color(.systemBackground))
@@ -57,9 +60,13 @@ struct GameView: View {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button("Reset") {
                     gameState.resetGame()
+                    resetKey = UUID() // Force all child views to recreate
                 }
                 .foregroundColor(.red)
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: GameState.gameDidResetNotification)) { _ in
+            resetKey = UUID() // Force view recreation when reset notification is received
         }
     }
 }

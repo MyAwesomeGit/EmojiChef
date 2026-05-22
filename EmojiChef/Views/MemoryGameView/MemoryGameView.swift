@@ -3,6 +3,7 @@ import SwiftUI
 struct MemoryGameView: View {
     @EnvironmentObject var gameState: GameState
     @StateObject private var viewModel = MemoryGameViewModel()
+    @State private var isConfigured = false
     
     var body: some View {
         ScrollView {
@@ -13,8 +14,17 @@ struct MemoryGameView: View {
             }
         }
         .onAppear {
-            // Передаём зависимость после того, как окружение готово
-            viewModel.configure(with: gameState)
+            // Configure only once
+            if !isConfigured {
+                viewModel.configure(with: gameState)
+                isConfigured = true
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: GameState.gameDidResetNotification)) { _ in
+            // This will automatically be handled by the viewModel's observer
+            // But we also need to reset the configuration flag
+            isConfigured = false
+            // Force view to re-render
         }
     }
     
@@ -84,6 +94,7 @@ struct MemoryGameView: View {
                 .controlSize(.large)
                 
                 Button("Play Again") {
+                    // This will reset the viewModel and trigger a full reset
                     viewModel.setupGame()
                 }
                 .buttonStyle(.bordered)
