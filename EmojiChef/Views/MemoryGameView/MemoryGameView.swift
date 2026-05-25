@@ -16,10 +16,6 @@ struct MemoryGameView: View {
             // Configure the ViewModel once when the view appears
             viewModel.configure(with: gameState)
         }
-        .onReceive(NotificationCenter.default.publisher(for: GameState.gameDidResetNotification)) { _ in
-            // The reset is handled by the resetKey in GameView, which recreates this view.
-            // This observer is kept only for safety, but it's not necessary.
-        }
     }
     
     private var activeGameView: some View {

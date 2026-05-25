@@ -1,4 +1,3 @@
-import SwiftUI
 
 class RecipeManager: RecipeManageable {
     func findRecipe(for ingredients: Set<String>) -> Recipe? {
