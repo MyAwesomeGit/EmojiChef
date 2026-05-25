@@ -2,7 +2,7 @@ import SwiftUI
 
 // Created Recipes Grid Component
 struct CreatedRecipesGridView: View {
-    let createdRecipes: Set<String>
+    let createdRecipes: [String]
     
     var body: some View {
         VStack(alignment: .leading) {
@@ -12,7 +12,7 @@ struct CreatedRecipesGridView: View {
                     .foregroundColor(.primary)
                 
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 10) {
-                    ForEach(Array(createdRecipes), id: \.self) { recipeName in
+                    ForEach(createdRecipes, id: \.self) { recipeName in
                         if let recipe = Recipe.availableRecipes.first(where: { $0.name == recipeName }) {
                             CreatedRecipeItemView(recipe: recipe)
                         }

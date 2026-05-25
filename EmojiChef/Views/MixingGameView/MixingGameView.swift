@@ -2,20 +2,16 @@ import SwiftUI
 internal import UniformTypeIdentifiers
 
 struct MixingGameView: View {
-    @EnvironmentObject var gameState: GameState
+    @StateObject private var viewModel: MixingGameViewModel
     @Environment(\.colorScheme) private var colorScheme
-    @State private var showingRecipeAlert = false
-    @State private var recipeMessage = ""
-    @State private var bowlIngredients: Set<String> = []
-    @State private var dragOverBowl = false
-    @State private var draggedIngredient: String? = nil
-    @State private var showInvalidFeedback = false
-    @State private var invalidMessage = ""
     
-    private let recipeManager: RecipeManageable
-    
-    init(recipeManager: RecipeManageable = RecipeManager()) {
-        self.recipeManager = recipeManager
+    init(gameState: GameState, recipeManager: RecipeManageable = RecipeManager()) {
+        _viewModel = StateObject(
+            wrappedValue: MixingGameViewModel(
+                gameState: gameState,
+                recipeManager: recipeManager
+            )
+        )
     }
     
     var body: some View {
@@ -29,12 +25,18 @@ struct MixingGameView: View {
             .padding()
         }
         .background(Color(.systemBackground))
-        .recipeAlert(isPresented: $showingRecipeAlert, message: recipeMessage)
-        .alert("No Recipe Found", isPresented: $showInvalidFeedback) {
-            Button("OK") {}
-        } message: {
-            Text(invalidMessage)
-        }
+        .alert(
+            viewModel.alertType?.title ?? "",
+            isPresented: $viewModel.isAlertPresented,
+            actions: {
+                Button("Yummy!") {
+                    viewModel.dismissAlert()
+                }
+            },
+            message: {
+                Text(viewModel.alertType?.message ?? "")
+            }
+        )
     }
     
     // MARK: - Header
@@ -48,19 +50,16 @@ struct MixingGameView: View {
     // MARK: - Ingredient Grid (Draggable)
     private var ingredientGrid: some View {
         VStack(alignment: .leading) {
-            Text("Your Ingredients: (\(gameState.collectedIngredients.count)/8)")
+            Text("Your Ingredients: (\(viewModel.availableIngredients.count)/8)")
                 .font(.headline)
                 .foregroundColor(.primary)
             
             LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 10) {
-                ForEach(Array(gameState.collectedIngredients), id: \.self) { ingredient in
-                    if let food = FoodIngredient.allIngredients.first(where: { $0.name == ingredient }) {
-                        IngredientItemView(food: food)
-                            .onDrag {
-                                self.draggedIngredient = ingredient
-                                return NSItemProvider(object: ingredient as NSString)
-                            }
-                    }
+                ForEach(viewModel.availableIngredients) { food in
+                    IngredientItemView(food: food)
+                        .onDrag {
+                            NSItemProvider(object: food.name as NSString)
+                        }
                 }
             }
         }
@@ -78,38 +77,39 @@ struct MixingGameView: View {
             
             ZStack {
                 RoundedRectangle(cornerRadius: 20)
-                    .fill(dragOverBowl ? Color.blue.opacity(0.2) : Color.gray.opacity(0.1))
+                    .fill(Color.gray.opacity(0.1))
                     .overlay(
                         RoundedRectangle(cornerRadius: 20)
-                            .stroke(dragOverBowl ? Color.blue : Color.gray.opacity(0.5), lineWidth: 2)
+                            .stroke(Color.gray.opacity(0.5), lineWidth: 2)
                     )
                     .frame(minHeight: 120)
-                    .onDrop(of: [UTType.plainText.identifier], isTargeted: $dragOverBowl) { providers in
-                        handleDrop(providers: providers)
+                    .onDrop(
+                        of: [UTType.plainText.identifier],  // ✅ FIXED: Added isTargeted parameter
+                        isTargeted: nil
+                    ) { providers in
+                        viewModel.handleDrop(providers)
                         return true
                     }
                 
-                if bowlIngredients.isEmpty {
+                if viewModel.bowlIngredients.isEmpty {
                     Text("Drag ingredients here to combine")
                         .foregroundColor(.secondary)
                 } else {
                     VStack(spacing: 8) {
                         HStack(spacing: 12) {
-                            ForEach(Array(bowlIngredients), id: \.self) { ingredient in
-                                if let food = FoodIngredient.allIngredients.first(where: { $0.name == ingredient }) {
-                                    VStack {
-                                        Text(food.emoji)
-                                            .font(.title)
-                                        Text(food.name)
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                    }
-                                    .padding(6)
-                                    .background(Color.white.opacity(0.6))
-                                    .cornerRadius(8)
-                                    .onTapGesture {
-                                        bowlIngredients.remove(ingredient)
-                                    }
+                            ForEach(viewModel.bowlFoodItems) { food in
+                                VStack {
+                                    Text(food.emoji)
+                                        .font(.title)
+                                    Text(food.name)
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                                .padding(6)
+                                .background(Color.white.opacity(0.6))
+                                .cornerRadius(8)
+                                .onTapGesture {
+                                    viewModel.removeIngredient(food.name)
                                 }
                             }
                         }
@@ -123,14 +123,14 @@ struct MixingGameView: View {
             
             HStack {
                 Button("Clear Bowl") {
-                    bowlIngredients.removeAll()
+                    viewModel.clearBowl()
                 }
                 .buttonStyle(.bordered)
-                .disabled(bowlIngredients.isEmpty)
+                .disabled(!viewModel.canClearBowl)
                 
                 Spacer()
                 
-                Text("\(bowlIngredients.count) ingredient(s)")
+                Text("\(viewModel.ingredientCount) ingredient(s)")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -142,72 +142,6 @@ struct MixingGameView: View {
     
     // MARK: - Created Recipes
     private var createdRecipesSection: some View {
-        CreatedRecipesGridView(createdRecipes: gameState.createdRecipes)
-    }
-    
-    // MARK: - Drop Handling
-    private func handleDrop(providers: [NSItemProvider]) {
-        for provider in providers {
-            provider.loadItem(forTypeIdentifier: UTType.plainText.identifier, options: nil) { (item, error) in
-                DispatchQueue.main.async {
-                    if let error = error {
-                        print("Drop error: \(error.localizedDescription)")
-                        return
-                    }
-                    
-                    if let data = item as? Data,
-                       let ingredient = String(data: data, encoding: .utf8) {
-                        self.addIngredientToBowl(ingredient)
-                    } else if let string = item as? String {
-                        self.addIngredientToBowl(string)
-                    } else if let nsString = item as? NSString {
-                        self.addIngredientToBowl(nsString as String)
-                    }
-                }
-            }
-        }
-    }
-    
-    private func addIngredientToBowl(_ ingredient: String) {
-        guard gameState.collectedIngredients.contains(ingredient) else { return }
-        guard !bowlIngredients.contains(ingredient) else { return }
-        
-        bowlIngredients.insert(ingredient)
-        
-        // Check if bowl contents match a recipe exactly
-        if let recipe = recipeManager.findRecipe(for: bowlIngredients) {
-            // Check if recipe is already created
-            if recipeManager.isRecipeCreated(recipe, createdRecipes: gameState.createdRecipes) {
-                recipeMessage = "You already made \(recipe.emoji) \(recipe.name)! Try a different combination."
-                showingRecipeAlert = true
-                bowlIngredients.removeAll()
-                return
-            }
-            
-            // Recipe found – create it
-            let message = recipeManager.createRecipe(recipe, in: gameState)
-            recipeMessage = message
-            showingRecipeAlert = true
-            bowlIngredients.removeAll()
-            return
-        }
-        
-        // Check if current ingredients can lead to any recipe
-        let canLeadToRecipe = recipeManager.canLeadToRecipe(bowlIngredients)
-        
-        if canLeadToRecipe {
-            // Still possible to complete a recipe – do nothing, let player continue
-            return
-        }
-        
-        // No recipe uses these ingredients together – show feedback
-        if bowlIngredients.count >= 2 {
-            if bowlIngredients.count >= 3 {
-                invalidMessage = "No recipe found with these ingredients. Try a different combination (max 3 ingredients)."
-            } else {
-                invalidMessage = "No recipe found with these ingredients. Keep experimenting!"
-            }
-            showInvalidFeedback = true
-        }
+        CreatedRecipesGridView(createdRecipes: viewModel.createdRecipesList.map { $0.name })
     }
 }

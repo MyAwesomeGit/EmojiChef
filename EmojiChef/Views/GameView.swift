@@ -49,7 +49,7 @@ struct GameView: View {
                 MemoryGameView()
                     .id(resetKey) // Force view recreation on reset
             case .mixingGame:
-                MixingGameView()
+                MixingGameView(gameState: gameState)
                     .id(resetKey) // Force view recreation on reset
             }
         }
