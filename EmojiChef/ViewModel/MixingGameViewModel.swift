@@ -26,7 +26,7 @@ class MixingGameViewModel: ObservableObject {
     
     // MARK: - Published Properties (UI State)
     @Published private(set) var bowlIngredients: Set<String> = []
-    @Published var isAlertPresented: Bool = false  // ✅ FIXED: Removed private(set)
+    @Published var isAlertPresented: Bool = false
     @Published private(set) var alertType: AlertType?
     @Published private(set) var canClearBowl: Bool = false
     @Published private(set) var ingredientCount: Int = 0

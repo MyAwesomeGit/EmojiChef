@@ -141,18 +141,12 @@ class MemoryGameViewModel: ObservableObject {
         matchedPairs = Set(allIngredients.map { $0.name })
         isGameCompleted = true
         isProcessing = false
-        
-        // No need to call updater methods – the game is already completed
     }
 }
 
 // MARK: - Helper extension for GameStateUpdater
 extension GameStateUpdater {
     func isMemoryGameCompleted() -> Bool {
-        // This method is not part of the protocol, so we need to cast.
-        // But we can rely on the concrete GameState implementation.
-        // Alternatively, we can extend the protocol with a default implementation.
-        // For simplicity, we assume the updater is a GameState object.
         if let gameState = self as? GameState {
             return gameState.memoryGameCompleted
         }

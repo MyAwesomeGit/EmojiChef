@@ -84,7 +84,7 @@ struct MixingGameView: View {
                     )
                     .frame(minHeight: 120)
                     .onDrop(
-                        of: [UTType.plainText.identifier],  // ✅ FIXED: Added isTargeted parameter
+                        of: [UTType.plainText.identifier],
                         isTargeted: nil
                     ) { providers in
                         viewModel.handleDrop(providers)
