@@ -26,53 +26,32 @@ class MemoryGameViewModel: ObservableObject {
     
     // MARK: - Dependencies
     private var gameStateUpdater: GameStateUpdater?
-    private var cancellables = Set<AnyCancellable>()
+    private var isConfigured = false
     
     // MARK: - Initialization
     init() {
-        setupGame()
-        setupResetObserver()
+        // No setup here – it will be done in configure(with:)
     }
     
-    // MARK: - Reset Observer
-    private func setupResetObserver() {
-        NotificationCenter.default.publisher(for: GameState.gameDidResetNotification)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.handleAppReset()
-            }
-            .store(in: &cancellables)
-    }
-    
-    private func handleAppReset() {
-        // Force a complete reset of the view model
-        setupGame()
-        // Clear any game state updater reference
-        gameStateUpdater = nil
-    }
-    
-    // MARK: - Configuration
+    // MARK: - Configuration (must be called before use)
     func configure(with updater: GameStateUpdater) {
+        guard !isConfigured else { return }
         self.gameStateUpdater = updater
+        isConfigured = true
         
-        // Only sync if game is already completed
-        if isGameCompleted {
-            // Add all matched pairs as collected ingredients
-            for ingredientName in matchedPairs {
-                updater.addCollectedIngredient(ingredientName)
-            }
+        // If the game was already completed in GameState, restore it
+        if updater.isMemoryGameCompleted() {
+            restoreCompletedGame()
+        } else {
+            setupGame()
         }
     }
     
     // MARK: - Public Methods
     func setupGame() {
         let allIngredients = FoodIngredient.allIngredients
-        
-        // If we have existing collected ingredients, only use those that aren't matched yet
-        // but for a fresh game, use all ingredients
         var newCards: [MemoryCard] = []
         
-        // Always start fresh with all ingredients
         for ingredient in allIngredients {
             newCards.append(MemoryCard(ingredient: ingredient))
             newCards.append(MemoryCard(ingredient: ingredient))
@@ -84,15 +63,7 @@ class MemoryGameViewModel: ObservableObject {
         isGameCompleted = false
         isProcessing = false
         
-        // Notify updater to reset progress
         gameStateUpdater?.resetMemoryGameProgress()
-        
-        // Also clear any existing ingredients in game state
-        if let updater = gameStateUpdater {
-            // Reset memory game progress clears collectedIngredients
-            // But we want to ensure a fresh start
-            updater.resetMemoryGameProgress()
-        }
     }
     
     func flipCard(at index: Int) {
@@ -155,8 +126,36 @@ class MemoryGameViewModel: ObservableObject {
         isProcessing = false
     }
     
-    // MARK: - Deinitialization
-    deinit {
-        cancellables.removeAll()
+    private func restoreCompletedGame() {
+        // Restore the state from GameState (which already has all ingredients)
+        let allIngredients = FoodIngredient.allIngredients
+        var newCards: [MemoryCard] = []
+        
+        for ingredient in allIngredients {
+            newCards.append(MemoryCard(ingredient: ingredient, isMatched: true))
+            newCards.append(MemoryCard(ingredient: ingredient, isMatched: true))
+        }
+        
+        cards = newCards.shuffled()
+        flippedIndices = []
+        matchedPairs = Set(allIngredients.map { $0.name })
+        isGameCompleted = true
+        isProcessing = false
+        
+        // No need to call updater methods – the game is already completed
+    }
+}
+
+// MARK: - Helper extension for GameStateUpdater
+extension GameStateUpdater {
+    func isMemoryGameCompleted() -> Bool {
+        // This method is not part of the protocol, so we need to cast.
+        // But we can rely on the concrete GameState implementation.
+        // Alternatively, we can extend the protocol with a default implementation.
+        // For simplicity, we assume the updater is a GameState object.
+        if let gameState = self as? GameState {
+            return gameState.memoryGameCompleted
+        }
+        return false
     }
 }
